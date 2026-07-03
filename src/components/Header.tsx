@@ -38,7 +38,7 @@ export const Header = () => (
       <div className="flex items-center gap-2">
         <ThemeToggle />
         <a
-          href="https://github.com/topics/jai-programming-language"
+          href="https://github.com/MariuzM/jaipkg"
           target="_blank"
           rel="noreferrer"
           aria-label="GitHub"

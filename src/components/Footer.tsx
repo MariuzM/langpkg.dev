@@ -7,7 +7,7 @@ export const Footer = () => (
         © 2026 jaipkg · A focused registry for the Jai community
       </span>
       <a
-        href="https://github.com/topics/jai-programming-language"
+        href="https://github.com/MariuzM/jaipkg"
         target="_blank"
         rel="noreferrer"
         className="text-dim hover:text-mut inline-flex items-center gap-1.5 font-mono text-[12px] transition-colors"
