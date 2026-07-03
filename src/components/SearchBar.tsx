@@ -45,9 +45,6 @@ export const SearchBar = ({ initial = '', autofocus = false }: Props) => {
         aria-label="Search packages"
         className="text-tx placeholder:text-fai min-w-0 flex-1 bg-transparent font-sans text-[15px] outline-none"
       />
-      <kbd className="border-chipbd text-fai hidden rounded-[6px] border px-1.75 py-0.75 font-mono text-[11px] sm:block">
-        /
-      </kbd>
       <button
         type="submit"
         className="bg-acc text-btx rounded-[9px] px-4.5 py-2.25 font-sans text-[13.5px] font-semibold transition-opacity hover:opacity-90"
