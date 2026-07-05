@@ -1,5 +1,4 @@
-import { useState } from 'react'
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 
 import { IconClock, IconStar } from '@/components/Icons'
 import { PackageCard } from '@/components/PackageCard'
@@ -11,22 +10,32 @@ type View = 'popular' | 'updated'
 type Props = {
   popular: Array<Package>
   updated: Array<Package>
+  view: View
 }
 
-export const PopularPackages = ({ popular, updated }: Props) => {
-  const [view, setView] = useState<View>('popular')
+export const PopularPackages = ({ popular, updated, view }: Props) => {
+  const navigate = useNavigate()
 
   const list = view === 'popular' ? popular : updated
+
+  const select = (v: View) => {
+    navigate({
+      to: '/',
+      search: v === 'updated' ? { view: v } : {},
+      replace: true,
+      resetScroll: false,
+    })
+  }
 
   return (
     <div className="border-bd2 px-6.5 py-7">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <ViewBadge active={view === 'popular'} onClick={() => setView('popular')}>
+          <ViewBadge active={view === 'popular'} onClick={() => select('popular')}>
             <IconStar size={12} />
             Popular
           </ViewBadge>
-          <ViewBadge active={view === 'updated'} onClick={() => setView('updated')}>
+          <ViewBadge active={view === 'updated'} onClick={() => select('updated')}>
             <IconClock size={12} />
             Recently updated
           </ViewBadge>
