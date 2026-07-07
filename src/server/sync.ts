@@ -6,7 +6,12 @@ import type { NewPackageRow } from '@/db/schema'
 import type { Brand } from '@/lib/brands'
 import type { Package } from '@/lib/types'
 
-import { fetchLatestVersion, GITHUB_SEARCH_LIMIT, searchReposPage } from './github-source'
+import {
+  fetchLatestVersion,
+  GITHUB_SEARCH_LIMIT,
+  searchCount,
+  searchReposPage,
+} from './github-source'
 import type { GhError } from './github-source'
 
 const toRow = (p: Package, ecosystem: string): NewPackageRow => ({
@@ -41,7 +46,7 @@ const updateSet = {
   owner: sql`excluded.owner`,
   fullName: sql`excluded.full_name`,
   description: sql`excluded.description`,
-  version: sql`excluded.version`,
+  version: sql`coalesce(excluded.version, ${packages.version})`,
   url: sql`excluded.url`,
   homepage: sql`excluded.homepage`,
   stars: sql`excluded.stars`,
@@ -91,44 +96,45 @@ const runPool = async <T>(
 const isGhError = (e: unknown): e is GhError =>
   e instanceof Error && typeof (e as GhError).status === 'number'
 
-const collectQuery = async (
-  query: string,
-  collected: Map<number, Package>,
-  opts: Required<Omit<SyncOptions, 'onProgress'>> & {
-    onProgress?: (msg: string) => void
-  },
-) => {
-  const maxPages = Math.min(opts.maxPagesPerQuery, GITHUB_PAGE_LIMIT)
+type CollectOpts = Required<Omit<SyncOptions, 'onProgress'>> & {
+  onProgress?: (msg: string) => void
+}
 
-  for (let page = 1; page <= maxPages; page += 1) {
-    let res
+const fmtDate = (d: Date) => d.toISOString().slice(0, 10)
+
+const GITHUB_HISTORY_START = new Date('2008-01-01')
+
+const withRateLimit = async <T>(
+  fn: () => Promise<T>,
+  onProgress?: (msg: string) => void,
+): Promise<T> => {
+  for (;;) {
     try {
-      res = await searchReposPage(query, {
-        sort: 'stars',
-        page,
-        perPage: opts.perPage,
-        ttlMs: 0,
-      })
+      return await fn()
     } catch (e) {
       if (isGhError(e) && e.rateLimited) {
         const waitMs = e.resetAt
           ? Math.max(1000, Math.min(e.resetAt - Date.now() + 1000, 90_000))
           : 60_000
-        opts.onProgress?.(
+        onProgress?.(
           `Rate limited — waiting ${Math.round(waitMs / 1000)}s (set GITHUB_TOKEN to speed this up)...`,
         )
         await sleep(waitMs)
-        page -= 1
         continue
       }
       throw e
     }
+  }
+}
 
-    if (page === 1 && res.total > GITHUB_SEARCH_LIMIT - 1) {
-      opts.onProgress?.(
-        `"${query}" reports ${res.total}+ results; GitHub caps search at ${GITHUB_SEARCH_LIMIT}.`,
-      )
-    }
+const collectPages = async (query: string, collected: Map<number, Package>, opts: CollectOpts) => {
+  const maxPages = Math.min(opts.maxPagesPerQuery, GITHUB_PAGE_LIMIT)
+
+  for (let page = 1; page <= maxPages; page += 1) {
+    const res = await withRateLimit(
+      () => searchReposPage(query, { sort: 'stars', page, perPage: opts.perPage, ttlMs: 0 }),
+      opts.onProgress,
+    )
 
     let added = 0
     for (const p of res.items) {
@@ -140,6 +146,41 @@ const collectQuery = async (
     if (res.items.length < opts.perPage) break
     await sleep(opts.delayMs)
   }
+}
+
+const collectDateRange = async (
+  baseQuery: string,
+  start: Date,
+  end: Date,
+  collected: Map<number, Package>,
+  opts: CollectOpts,
+) => {
+  const q = `${baseQuery} created:${fmtDate(start)}..${fmtDate(end)}`
+  const total = await withRateLimit(() => searchCount(q), opts.onProgress)
+  if (total === 0) return
+
+  if (total <= GITHUB_SEARCH_LIMIT || fmtDate(start) === fmtDate(end)) {
+    opts.onProgress?.(`  ${fmtDate(start)}..${fmtDate(end)}: ${total}`)
+    await collectPages(q, collected, opts)
+    return
+  }
+
+  const mid = new Date(fmtDate(new Date((start.getTime() + end.getTime()) / 2)))
+  await collectDateRange(baseQuery, start, mid, collected, opts)
+  await collectDateRange(baseQuery, new Date(mid.getTime() + 86_400_000), end, collected, opts)
+}
+
+const collectQuery = async (query: string, collected: Map<number, Package>, opts: CollectOpts) => {
+  const total = await withRateLimit(() => searchCount(query), opts.onProgress)
+  opts.onProgress?.(`"${query}": ${total} total`)
+
+  if (total <= GITHUB_SEARCH_LIMIT) {
+    await collectPages(query, collected, opts)
+    return
+  }
+
+  opts.onProgress?.(`"${query}" exceeds ${GITHUB_SEARCH_LIMIT} — batching by created-date range...`)
+  await collectDateRange(query, GITHUB_HISTORY_START, new Date(), collected, opts)
 }
 
 export const syncPackages = async (

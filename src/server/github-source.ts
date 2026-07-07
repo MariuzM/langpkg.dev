@@ -172,6 +172,15 @@ export const searchReposPage = async (
   }
 }
 
+export const searchCount = async (query: string): Promise<number> => {
+  const params = new URLSearchParams({ q: query.trim(), per_page: '1' })
+  const res = await ghFetch<{ total_count: number }>(
+    `/search/repositories?${params.toString()}`,
+    0,
+  )
+  return res.total_count
+}
+
 export const searchRepos = async (
   brand: Brand,
   query: PackageQuery,
