@@ -11,10 +11,7 @@ const config = defineConfig({
   resolve: { tsconfigPaths: true },
   plugins: [
     devtools(),
-    nitro({
-      rollupConfig: { external: [/^@sentry\//] },
-      vercel: { functions: { maxDuration: 800 } },
-    }),
+    nitro({ rollupConfig: { external: [/^@sentry\//] } }),
     tailwindcss(),
     tanstackStart(),
     viteReact(),
