@@ -30,7 +30,7 @@ export const BRANDS: Record<BrandId, Brand> = {
     tagline: 'Jai package discovery',
     heroLine: 'Jai dependency',
     language: 'Jai',
-    repo: 'MariuzM/jaipkg',
+    repo: 'MariuzM/langpkg.dev',
     topics: ['gamedev', 'bindings', 'graphics', 'simd', 'cli', 'http'],
     searchQualifier: 'language:Jai fork:false',
     discoveryQueries: [

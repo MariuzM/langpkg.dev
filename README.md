@@ -1,6 +1,8 @@
-# jaipkg
+# langpkg.dev
 
-Package discovery for the [Jai](https://en.wikipedia.org/wiki/Jai_(programming_language)) programming language. Browse, search, and inspect Jai libraries, tools, and bindings — sourced live from GitHub with stars, activity, versions, and READMEs at a glance.
+Package discovery for the [Jai](https://en.wikipedia.org/wiki/Jai_(programming_language)) and [Odin](https://odin-lang.org) programming languages. Browse, search, and inspect Jai and Odin libraries, tools, and bindings — sourced live from GitHub with stars, activity, versions, and READMEs at a glance.
+
+Each language has its own subdomain: [jai.langpkg.dev](https://jai.langpkg.dev) and [odin.langpkg.dev](https://odin.langpkg.dev).
 
 ## Tech stack
 
