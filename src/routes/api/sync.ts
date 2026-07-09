@@ -23,19 +23,31 @@ export const Route = createFileRoute('/api/sync')({
 
         if (running) return json({ error: 'sync already running' }, 409)
 
-        const brandParam = new URL(request.url).searchParams.get('brand')
+        const url = new URL(request.url)
+        const brandParam = url.searchParams.get('brand')
         const brands = isBrandId(brandParam) ? [BRANDS[brandParam]] : Object.values(BRANDS)
+
+        const full = url.searchParams.get('full') === '1'
+        const daysParam = Number(url.searchParams.get('days'))
+        const sinceDays = full
+          ? undefined
+          : Number.isFinite(daysParam) && daysParam > 0
+            ? daysParam
+            : 2
 
         running = true
         try {
           const { syncPackages } = await import('@/server/sync')
           const counts: Record<string, number> = {}
           for (const brand of brands) {
-            counts[brand.id] = await syncPackages(brand)
+            counts[brand.id] = await syncPackages(
+              brand,
+              full ? { fetchVersions: false } : { sinceDays },
+            )
           }
           const count = Object.values(counts).reduce((a, b) => a + b, 0)
           lastRunAt = new Date().toISOString()
-          return json({ ok: true, count, counts, lastRunAt })
+          return json({ ok: true, count, counts, sinceDays: sinceDays ?? null, lastRunAt })
         } catch (e) {
           return json({ error: e instanceof Error ? e.message : 'sync failed' }, 500)
         } finally {

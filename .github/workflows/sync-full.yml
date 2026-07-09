@@ -1,8 +1,8 @@
-name: Sync packages (incremental)
+name: Sync packages (full refresh)
 
 on:
   schedule:
-    - cron: '0 * * * *'
+    - cron: '0 4 * * *'
   workflow_dispatch: {}
 
 concurrency:
@@ -10,22 +10,28 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  sync:
+  full:
     runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 1
+      matrix:
+        brand: [jai, odin]
     steps:
-      - name: Trigger incremental sync
+      - name: Trigger full refresh for ${{ matrix.brand }}
         env:
           SYNC_URL: ${{ secrets.SYNC_URL }}
           SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
+          BRAND: ${{ matrix.brand }}
         run: |
           if [ -z "$SYNC_URL" ] || [ -z "$SYNC_SECRET" ]; then
             echo "SYNC_URL and SYNC_SECRET repository secrets must be set." >&2
             exit 1
           fi
-          echo "Triggering $SYNC_URL"
+          target="$SYNC_URL?full=1&brand=$BRAND"
+          echo "Triggering $target"
           http_code=$(curl -sS -o /tmp/sync-out.json -w "%{http_code}" \
-            --max-time 600 \
-            -X POST "$SYNC_URL" \
+            --max-time 800 \
+            -X POST "$target" \
             -H "Authorization: Bearer $SYNC_SECRET" \
             -H "Content-Type: application/json")
           echo "HTTP $http_code"

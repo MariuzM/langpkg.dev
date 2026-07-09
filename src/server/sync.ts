@@ -74,6 +74,7 @@ export type SyncOptions = {
   maxPagesPerQuery?: number
   delayMs?: number
   fetchVersions?: boolean
+  sinceDays?: number
   onProgress?: (msg: string) => void
 }
 
@@ -96,7 +97,7 @@ const runPool = async <T>(
 const isGhError = (e: unknown): e is GhError =>
   e instanceof Error && typeof (e as GhError).status === 'number'
 
-type CollectOpts = Required<Omit<SyncOptions, 'onProgress'>> & {
+type CollectOpts = Required<Omit<SyncOptions, 'onProgress' | 'sinceDays'>> & {
   onProgress?: (msg: string) => void
 }
 
@@ -190,15 +191,19 @@ export const syncPackages = async (
     maxPagesPerQuery = GITHUB_PAGE_LIMIT,
     delayMs = process.env.GITHUB_TOKEN ? 300 : 2500,
     fetchVersions = Boolean(process.env.GITHUB_TOKEN),
+    sinceDays,
     onProgress,
   }: SyncOptions = {},
 ): Promise<number> => {
   const db = getDb()
   if (!db) throw new Error('DATABASE_URL is not set')
 
+  const since = sinceDays && sinceDays > 0 ? new Date(Date.now() - sinceDays * 86_400_000) : null
+
   const collected = new Map<number, Package>()
   for (const query of brand.discoveryQueries) {
-    await collectQuery(query, collected, {
+    const scoped = since ? `${query} pushed:>=${fmtDate(since)}` : query
+    await collectQuery(scoped, collected, {
       perPage,
       maxPagesPerQuery,
       delayMs,
