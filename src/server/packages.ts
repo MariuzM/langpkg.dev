@@ -174,6 +174,47 @@ export const getStats = createServerFn({ method: 'GET' }).handler(async (): Prom
   }
 })
 
+export type LandingStats = Partial<Record<string, { packages: number; stars: number }>>
+
+export const getLandingStats = createServerFn({ method: 'GET' }).handler(
+  async (): Promise<LandingStats> => {
+    const db = getDb()
+    if (!db) return {}
+    const rows = await db
+      .select({
+        ecosystem: packages.ecosystem,
+        total: count(),
+        stars: sql<number>`coalesce(sum(${packages.stars}), 0)`,
+      })
+      .from(packages)
+      .groupBy(packages.ecosystem)
+    return Object.fromEntries(
+      rows.map((r) => [r.ecosystem, { packages: Number(r.total), stars: Number(r.stars) }]),
+    )
+  },
+)
+
+export type TopicCount = { topic: string; count: number }
+
+export const getPopularTopics = createServerFn({ method: 'GET' }).handler(
+  async (): Promise<Array<TopicCount>> => {
+    const brand = getBrand(getBrandId())
+    const db = getDb()
+    if (!db || !(await hasRows(db, brand))) {
+      return brand.topics.map((topic) => ({ topic, count: 0 }))
+    }
+    const rows = await db.execute<{ topic: string; count: number }>(sql`
+      select t.topic as topic, count(*)::int as count
+      from ${packages}, jsonb_array_elements_text(${packages.topics}) as t(topic)
+      where ${packages.ecosystem} = ${brand.id}
+      group by t.topic
+      order by count desc, t.topic asc
+      limit 12
+    `)
+    return Array.from(rows).map((r) => ({ topic: r.topic, count: Number(r.count) }))
+  },
+)
+
 export const getPackage = createServerFn({ method: 'GET' })
   .validator((d: { owner: string; repo: string }) => d)
   .handler(async ({ data }): Promise<PackageDetail> => {

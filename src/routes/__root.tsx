@@ -12,8 +12,6 @@ import { DEFAULT_BRAND_ID, getBrand } from '@/lib/brands'
 
 import appCss from '../styles/styles.css?url'
 
-const themeInit = `try{var t=localStorage.getItem('theme');document.documentElement.dataset.theme=t==='light'?'light':'dark'}catch(e){document.documentElement.dataset.theme='dark'}`
-
 export const Route = createRootRoute({
   beforeLoad: () => {
     const resolution = getHostResolution()
@@ -44,11 +42,10 @@ export const Route = createRootRoute({
       },
       {
         rel: 'stylesheet',
-        href: 'https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap',
+        href: 'https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600;700&display=swap',
       },
       { rel: 'stylesheet', href: appCss },
     ],
-    scripts: [{ children: themeInit }],
   }),
   notFoundComponent: NotFound,
   shellComponent: RootDocument,
@@ -70,11 +67,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
     )
 
   return (
-    <html
-      lang="en"
-      data-theme="dark"
-      data-brand={resolution.kind === 'landing' ? 'langpkg' : brand.id}
-    >
+    <html lang="en" data-brand={resolution.kind === 'landing' ? 'langpkg' : brand.id}>
       <head>
         <HeadContent />
       </head>

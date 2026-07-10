@@ -6,9 +6,14 @@ import { IconSearch } from './Icons'
 type Props = {
   initial?: string
   autofocus?: boolean
+  placeholder?: string
 }
 
-export const SearchBar = ({ initial = '', autofocus = false }: Props) => {
+export const SearchBar = ({
+  initial = '',
+  autofocus = false,
+  placeholder = 'Search packages, tags, authors…',
+}: Props) => {
   const [value, setValue] = useState(initial)
   const ref = useRef<HTMLInputElement>(null)
   const navigate = useNavigate()
@@ -32,25 +37,28 @@ export const SearchBar = ({ initial = '', autofocus = false }: Props) => {
   }
 
   return (
-    <form
-      onSubmit={submit}
-      className="shadow-card border-chipbd bg-surf focus-within:border-acc flex items-center gap-2.75 rounded-lg border py-1.5 pr-1.5 pl-4 transition-colors"
-    >
-      <IconSearch size={17} className="text-fai" />
+    <form onSubmit={submit} className="relative w-full">
+      <IconSearch
+        size={14}
+        className="absolute top-1/2 left-4 -translate-y-1/2 text-white/30"
+      />
       <input
         ref={ref}
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        placeholder="Search packages — try raylib"
+        placeholder={placeholder}
         aria-label="Search packages"
-        className="text-tx placeholder:text-fai min-w-0 flex-1 bg-transparent font-sans text-[15px] outline-none"
+        className="bg-surf border-bd focus:border-accbd rounded-pill w-full border py-3 pr-4 pl-10 font-mono text-[14px] text-white/80 transition-all outline-none placeholder:text-white/20"
       />
-      <button
-        type="submit"
-        className="bg-acc text-btx rounded-md px-4.5 py-2.25 font-sans text-[13.5px] font-semibold transition-opacity hover:opacity-90"
-      >
-        Search
-      </button>
+      {value && (
+        <button
+          type="button"
+          onClick={() => setValue('')}
+          className="absolute top-1/2 right-4 -translate-y-1/2 font-mono text-[11px] text-white/30 transition-colors hover:text-white/60"
+        >
+          clear
+        </button>
+      )}
     </form>
   )
 }

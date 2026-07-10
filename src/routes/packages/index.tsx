@@ -1,18 +1,17 @@
-import { useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 
 import {
-  IconCheck,
   IconChevronLeft,
   IconChevronRight,
-  IconGrid,
-  IconList,
+  IconSearch,
+  IconSliders,
+  IconX,
 } from '@/components/Icons'
-import { PackageCard } from '@/components/PackageCard'
 import { PackageRow } from '@/components/PackageRow'
 import { SearchBar } from '@/components/SearchBar'
+import { getTagClass } from '@/lib/tags'
 import type { PackageKind, SortKey } from '@/lib/types'
-import { getPackages } from '@/server/packages'
+import { getPackages, getPopularTopics } from '@/server/packages'
 
 type PackagesSearch = {
   q?: string
@@ -43,8 +42,6 @@ const KIND_LABELS: Record<PackageKind, string> = {
   app: 'applications',
 }
 
-const TOPICS = ['graphics', 'gamedev', 'net', 'cli', 'simd', 'wasm', 'parser', 'math']
-
 const PER_PAGE = 24
 
 export const Route = createFileRoute('/packages/')({
@@ -63,183 +60,160 @@ export const Route = createFileRoute('/packages/')({
   loaderDeps: ({ search }) => search,
   loader: async ({ deps, context }) => {
     if (context.resolution.kind !== 'brand') {
-      return { items: [], total: 0, page: 1, perPage: PER_PAGE }
+      return { result: { items: [], total: 0, page: 1, perPage: PER_PAGE }, topics: [] }
     }
-    return getPackages({
-      data: {
-        q: deps.q,
-        kind: deps.kind,
-        sort: deps.sort ?? 'stars',
-        page: deps.page ?? 1,
-        perPage: PER_PAGE,
-      },
-    })
+    const [result, topics] = await Promise.all([
+      getPackages({
+        data: {
+          q: deps.q,
+          kind: deps.kind,
+          sort: deps.sort ?? 'stars',
+          page: deps.page ?? 1,
+          perPage: PER_PAGE,
+        },
+      }),
+      getPopularTopics(),
+    ])
+    return { result, topics }
   },
   component: PackagesPage,
 })
 
 function PackagesPage() {
-  const data = Route.useLoaderData()
+  const { result, topics } = Route.useLoaderData()
   const search = Route.useSearch()
-  const [view, setView] = useState<'list' | 'grid'>('list')
 
   const page = search.page ?? 1
-  const totalPages = Math.max(1, Math.ceil(data.total / PER_PAGE))
+  const totalPages = Math.max(1, Math.ceil(result.total / PER_PAGE))
   const sort = search.sort ?? 'stars'
-  const sortLabel = SORTS.find((s) => s.value === sort)?.label ?? 'Most stars'
+  const hasFilters = Boolean(search.q) || Boolean(search.kind)
 
   return (
-    <div className="mx-auto max-w-[1240px] px-6.5 py-6.5">
-      <SearchBar initial={search.q ?? ''} />
+    <div className="mx-auto max-w-6xl px-6 py-10">
+      <div className="mb-8 max-w-2xl">
+        <SearchBar initial={search.q ?? ''} placeholder="Search packages…" autofocus />
+      </div>
 
-      <div className="mt-6 grid grid-cols-1 items-start gap-6.5 lg:grid-cols-[248px_1fr]">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-4">
         {/* filters */}
-        <aside className="top-20 hidden flex-col gap-6 lg:sticky lg:flex">
-          <FilterGroup title="Category">
-            {CATEGORIES.map((c) => {
-              const active = (search.kind ?? undefined) === c.kind
-              return (
-                <Link
-                  key={c.label}
-                  to="/packages"
-                  search={{ kind: c.kind, sort }}
-                  className={`flex items-center gap-2.25 rounded-sm px-2.5 py-2 font-sans text-[13px] transition-colors ${
-                    active
-                      ? 'bg-accsoft text-tx font-semibold'
-                      : 'text-tx2 hover:bg-chip font-medium'
-                  }`}
-                >
-                  <span
-                    className="flex size-3.75 items-center justify-center rounded-xs border"
-                    style={
-                      active
-                        ? {
-                            background: 'var(--acc)',
-                            borderColor: 'var(--acc)',
-                            color: 'var(--btx)',
-                          }
-                        : { borderColor: 'var(--chipbd)' }
-                    }
-                  >
-                    {active && <IconCheck size={11} />}
-                  </span>
-                  {c.label}
-                </Link>
-              )
-            })}
-          </FilterGroup>
-
-          <div className="bg-bd2 h-px" />
-
-          <FilterGroup title="Sort by">
-            {SORTS.map((o) => {
-              const active = sort === o.value
-              return (
-                <Link
-                  key={o.value}
-                  to="/packages"
-                  search={{ q: search.q, kind: search.kind, sort: o.value }}
-                  className={`rounded-sm px-2.5 py-1.75 font-sans text-[13px] transition-colors ${
-                    active
-                      ? 'bg-accsoft text-acc2 font-semibold'
-                      : 'text-tx2 hover:bg-chip font-medium'
-                  }`}
-                >
-                  {o.label}
-                </Link>
-              )
-            })}
-          </FilterGroup>
-
-          <div className="bg-bd2 h-px" />
-
-          <FilterGroup title="Topics">
-            <div className="flex flex-wrap gap-1.75">
-              {TOPICS.map((t) => {
-                const active = search.q === t
+        <div className="flex flex-col gap-4">
+          <div className="bg-card border-bd overflow-hidden rounded-lg border">
+            <div className="border-bd flex items-center gap-2 border-b px-4 py-3">
+              <IconSliders size={11} className="text-white/25" />
+              <span className="font-mono text-[11px] font-semibold tracking-wider text-white/40 uppercase">
+                Category
+              </span>
+            </div>
+            <div className="py-1">
+              {CATEGORIES.map((c) => {
+                const active = (search.kind ?? undefined) === c.kind
                 return (
                   <Link
-                    key={t}
+                    key={c.label}
                     to="/packages"
-                    search={{ q: t, sort }}
-                    className="rounded-pill border px-2.25 py-1 font-mono text-[11.5px] font-medium transition-colors"
-                    style={
-                      active
-                        ? {
-                            color: 'var(--acc2)',
-                            background: 'var(--accsoft)',
-                            borderColor: 'var(--accbd)',
-                          }
-                        : {
-                            color: 'var(--tx2)',
-                            background: 'var(--chip)',
-                            borderColor: 'var(--chipbd)',
-                          }
-                    }
+                    search={{ q: search.q, kind: c.kind, sort }}
+                    className={`flex w-full items-center justify-between px-4 py-2.5 text-left font-mono text-[12px] transition-colors ${
+                      active ? 'text-acc' : 'text-white/35 hover:text-white/60'
+                    }`}
                   >
-                    {t}
+                    {c.label}
+                    {active && <div className="bg-acc h-1 w-1 rounded-full" />}
                   </Link>
                 )
               })}
             </div>
-          </FilterGroup>
-        </aside>
+          </div>
 
-        {/* results */}
-        <div>
-          <div className="mb-3.5 flex items-baseline justify-between gap-3">
-            <div className="text-mut font-sans text-[13.5px]">
-              <span className="text-tx font-bold">
-                {data.total.toLocaleString()} {search.kind ? KIND_LABELS[search.kind] : 'packages'}
+          <div className="bg-card border-bd overflow-hidden rounded-lg border">
+            <div className="border-bd border-b px-4 py-3">
+              <span className="font-mono text-[11px] font-semibold tracking-wider text-white/40 uppercase">
+                Sort by
               </span>
-              {search.q && (
-                <>
-                  {' '}
-                  matching{' '}
-                  <span className="text-acc2 font-mono text-[13px] font-semibold">{search.q}</span>
-                </>
-              )}{' '}
-              · sorted by {sortLabel.toLowerCase()}
             </div>
-            <div className="flex gap-1.5">
-              <ViewButton
-                active={view === 'list'}
-                onClick={() => setView('list')}
-                label="List view"
-              >
-                <IconList size={15} />
-              </ViewButton>
-              <ViewButton
-                active={view === 'grid'}
-                onClick={() => setView('grid')}
-                label="Grid view"
-              >
-                <IconGrid size={15} />
-              </ViewButton>
+            <div className="py-1">
+              {SORTS.map((o) => {
+                const active = sort === o.value
+                return (
+                  <Link
+                    key={o.value}
+                    to="/packages"
+                    search={{ q: search.q, kind: search.kind, sort: o.value }}
+                    className={`flex w-full items-center justify-between px-4 py-2.5 text-left font-mono text-[12px] transition-colors ${
+                      active ? 'text-acc' : 'text-white/35 hover:text-white/60'
+                    }`}
+                  >
+                    {o.label}
+                    {active && <div className="bg-acc h-1 w-1 rounded-full" />}
+                  </Link>
+                )
+              })}
             </div>
           </div>
 
-          {data.items.length === 0 ? (
-            <div className="border-bd bg-card flex flex-col items-center gap-3 rounded-lg border py-16 text-center">
-              <p className="text-mut font-sans">No packages match your search.</p>
+          <div className="bg-card border-bd overflow-hidden rounded-lg border">
+            <div className="border-bd border-b px-4 py-3">
+              <span className="font-mono text-[11px] font-semibold tracking-wider text-white/40 uppercase">
+                Topics
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-1.5 px-4 py-3">
+              {topics.map((t) => {
+                const active = search.q === t.topic
+                return (
+                  <Link
+                    key={t.topic}
+                    to="/packages"
+                    search={{ q: active ? undefined : t.topic, kind: search.kind, sort }}
+                    className={`rounded-lg border px-2 py-1 font-mono text-[10px] transition-all ${getTagClass(t.topic)}`}
+                    style={active ? { outline: '1px solid var(--acc)', outlineOffset: 1 } : {}}
+                  >
+                    {t.topic}
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* results */}
+        <div className="lg:col-span-3">
+          <div className="mb-5 flex items-center justify-between">
+            <div className="font-mono text-[13px] text-white/40">
+              <span className="font-semibold text-white/70">{result.total.toLocaleString()}</span>{' '}
+              {search.kind ? KIND_LABELS[search.kind] : 'packages'}
+              {search.q && (
+                <>
+                  {' '}
+                  matching <span className="text-acc">&quot;{search.q}&quot;</span>
+                </>
+              )}
+            </div>
+            {hasFilters && (
               <Link
                 to="/packages"
-                search={{ sort: 'stars' }}
-                className="text-acc2 font-sans text-[13px] hover:opacity-80"
+                search={{ sort }}
+                className="flex items-center gap-1 font-mono text-[11px] text-white/25 transition-colors hover:text-white/50"
               >
-                Clear filters
+                <IconX size={10} />
+                clear filters
               </Link>
-            </div>
-          ) : view === 'list' ? (
-            <div className="flex flex-col gap-2.5">
-              {data.items.map((pkg) => (
-                <PackageRow key={pkg.id} pkg={pkg} />
-              ))}
+            )}
+          </div>
+
+          {result.items.length === 0 ? (
+            <div className="bg-card border-bd flex flex-col items-center justify-center rounded-lg border py-32 text-center">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-white/5">
+                <IconSearch size={18} className="text-white/20" />
+              </div>
+              <div className="mb-1 font-mono text-sm text-white/30">No packages found</div>
+              <div className="font-mono text-[12px] text-white/20">
+                Try adjusting your search or filters
+              </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {data.items.map((pkg) => (
-                <PackageCard key={pkg.id} pkg={pkg} />
+            <div className="flex flex-col gap-3">
+              {result.items.map((pkg) => (
+                <PackageRow key={pkg.id} pkg={pkg} />
               ))}
             </div>
           )}
@@ -253,9 +227,9 @@ function PackagesPage() {
                 kind={search.kind}
                 sort={sort}
               >
-                <IconChevronLeft size={16} />
+                <IconChevronLeft size={14} />
               </PageLink>
-              <span className="text-fai px-3 font-mono text-[12.5px]">
+              <span className="px-3 font-mono text-[12px] text-white/35">
                 {page} / {totalPages}
               </span>
               <PageLink
@@ -265,7 +239,7 @@ function PackagesPage() {
                 kind={search.kind}
                 sort={sort}
               >
-                <IconChevronRight size={16} />
+                <IconChevronRight size={14} />
               </PageLink>
             </div>
           )}
@@ -274,39 +248,6 @@ function PackagesPage() {
     </div>
   )
 }
-
-type FilterGroupProps = {
-  title: string
-  children: React.ReactNode
-}
-
-const FilterGroup = ({ title, children }: FilterGroupProps) => (
-  <div>
-    <div className="text-fai mb-3 font-mono text-[11px] font-bold tracking-[0.07em] uppercase">
-      {title}
-    </div>
-    <div className="flex flex-col gap-0.5">{children}</div>
-  </div>
-)
-
-type ViewButtonProps = {
-  active: boolean
-  onClick: () => void
-  label: string
-  children: React.ReactNode
-}
-
-const ViewButton = ({ active, onClick, label, children }: ViewButtonProps) => (
-  <button
-    onClick={onClick}
-    aria-label={label}
-    className={`flex h-7 w-7.5 items-center justify-center rounded-sm border transition-colors ${
-      active ? 'border-acc bg-accsoft text-acc2' : 'border-chipbd text-fai hover:text-tx'
-    }`}
-  >
-    {children}
-  </button>
-)
 
 type PageLinkProps = {
   to: number
@@ -322,7 +263,7 @@ const PageLink = ({ to, disabled, q, kind, sort, children }: PageLinkProps) => (
     to="/packages"
     search={{ q, kind, sort, page: to > 1 ? to : undefined }}
     aria-disabled={disabled}
-    className="border-chipbd bg-chip text-mut hover:text-tx flex size-8 items-center justify-center rounded-sm border transition-colors aria-disabled:pointer-events-none aria-disabled:opacity-40"
+    className="border-bd bg-card flex size-8 items-center justify-center rounded-lg border text-white/35 transition-colors hover:border-white/15 hover:text-white/70 aria-disabled:pointer-events-none aria-disabled:opacity-40"
   >
     {children}
   </Link>

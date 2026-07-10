@@ -8,6 +8,12 @@ export const formatNumber = (n: number): string => {
   return `${v.toFixed(1).replace(/\.0$/, '')}M`
 }
 
+export const formatVersion = (version: string | null): string | null => {
+  if (!version) return null
+  const v = version.replace(/^v/i, '')
+  return /^\d/.test(v) ? `v${v}` : v.slice(0, 10)
+}
+
 export const formatRelativeDate = (iso: string): string => {
   const then = new Date(iso).getTime()
   const now = Date.now()

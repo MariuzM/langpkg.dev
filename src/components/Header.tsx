@@ -1,63 +1,85 @@
-import { Link } from '@tanstack/react-router'
+import { useEffect, useState } from 'react'
+import { Link, useCanGoBack, useMatchRoute, useRouter } from '@tanstack/react-router'
 
+import { LANDING_HOST } from '@/lib/brands'
 import { useBrand } from '@/lib/useBrand'
 
-import { IconGithub } from './Icons'
+import { IconArrowLeft, IconGithub, IconRefresh } from './Icons'
 import { Logo } from './Logo'
-import { ThemeToggle } from './ThemeToggle'
 
 export const Header = () => {
   const brand = useBrand()
+  const router = useRouter()
+  const canGoBack = useCanGoBack()
+  const matchRoute = useMatchRoute()
+  const onDetail = Boolean(matchRoute({ to: '/packages/$owner/$repo' }))
+  const [home, setHome] = useState(`https://${LANDING_HOST}`)
+
+  useEffect(() => {
+    const u = new URL(window.location.origin)
+    if (u.hostname === 'localhost' || u.hostname.endsWith('.localhost')) {
+      setHome(`${u.protocol}//localhost${u.port ? `:${u.port}` : ''}`)
+    }
+  }, [])
+
   return (
     <header
-      className="border-bd sticky top-0 z-20 flex h-15 items-center justify-between border-b px-6.5"
-      style={{
-        background: 'color-mix(in srgb,var(--bg) 82%,transparent)',
-        backdropFilter: 'blur(12px)',
-      }}
+      className="border-bd sticky top-0 z-50 border-b"
+      style={{ background: 'rgba(8,12,18,0.85)', backdropFilter: 'blur(8px)' }}
     >
-      <div className="flex items-center gap-3.5">
-        <Logo />
-        <span className="border-chipbd bg-chip text-mut rounded-pill hidden items-center gap-1.75 border px-2 py-1 font-mono text-[10.5px] sm:inline-flex">
-          <span
-            className="bg-ok size-1.5 rounded-full"
-            style={{ animation: 'pulse 2.4s infinite' }}
-          />
-          auto-synced hourly
-        </span>
-      </div>
-
-      <div className="flex items-center gap-5.5">
-        <nav className="text-mut flex gap-5.5 font-sans text-[13.5px] font-medium">
+      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
+        <div className="flex items-center gap-3">
+          {onDetail ? (
+            <button
+              onClick={() => {
+                if (canGoBack) router.history.back()
+                else router.navigate({ to: '/packages', search: { sort: 'stars' } })
+              }}
+              className="mr-1 flex items-center gap-1.5 font-mono text-[11px] text-white/30 transition-colors hover:text-white/60"
+            >
+              <IconArrowLeft size={11} />
+              back
+            </button>
+          ) : (
+            <a
+              href={home}
+              className="mr-1 flex items-center gap-1.5 font-mono text-[11px] text-white/30 transition-colors hover:text-white/60"
+            >
+              <IconArrowLeft size={11} />
+              home
+            </a>
+          )}
+          <div className="h-4 w-px bg-white/10" />
+          <Logo />
+          <span className="border-bd hidden items-center gap-1 rounded-lg border px-2 py-0.5 font-mono text-[10px] text-white/25 sm:flex">
+            <IconRefresh size={8} />
+            synced hourly
+          </span>
+        </div>
+        <nav className="flex items-center gap-1">
           <Link
             to="/packages"
             search={{ sort: 'stars' }}
-            className="hover:text-tx transition-colors"
-            activeProps={{ className: 'text-tx' }}
+            className="rounded-lg px-3 py-1.5 font-mono text-[13px] text-white/40 transition-colors hover:bg-white/5 hover:text-white/80"
           >
-            Browse
+            browse
           </Link>
           <Link
             to="/about"
-            className="hover:text-tx transition-colors"
-            activeProps={{ className: 'text-tx' }}
+            className="rounded-lg px-3 py-1.5 font-mono text-[13px] text-white/40 transition-colors hover:bg-white/5 hover:text-white/80"
           >
-            About
+            about
           </Link>
-        </nav>
-        <div className="bg-bd h-5 w-px" />
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
           <a
             href={`https://github.com/${brand.repo}`}
             target="_blank"
             rel="noreferrer"
-            aria-label="GitHub"
-            className="border-chipbd bg-chip text-mut hover:border-acc hover:text-tx flex size-7.5 items-center justify-center rounded-sm border transition"
+            className="border-bd ml-2 flex items-center gap-1.5 rounded-lg border px-3 py-1.5 font-mono text-[13px] text-white/40 transition-all hover:bg-white/5 hover:text-white/80"
           >
-            <IconGithub />
+            <IconGithub size={12} />
+            github
           </a>
-        </div>
+        </nav>
       </div>
     </header>
   )

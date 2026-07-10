@@ -5,21 +5,12 @@ import { useBrand } from '@/lib/useBrand'
 export const Logo = () => {
   const brand = useBrand()
   return (
-    <Link to="/" className="flex items-center gap-2.25">
-      <div
-        className="text-btx flex items-center justify-center rounded-sm font-mono font-extrabold"
-        style={{
-          width: 26,
-          height: 26,
-          fontSize: 14,
-          background: 'linear-gradient(135deg,var(--acc),color-mix(in srgb,var(--acc) 55%,#fff))',
-        }}
-      >
+    <Link to="/" className="flex items-center gap-3">
+      <div className="bg-accbrandsoft text-accbrand flex h-7 w-7 items-center justify-center rounded-lg font-mono text-sm font-bold">
         {brand.letter}
       </div>
-      <span className="text-tx font-sans text-[15px] font-bold tracking-[-0.02em]">
-        {brand.wordmark}
-        <span className="text-fai font-semibold">{brand.host.slice(brand.wordmark.length)}</span>
+      <span className="font-mono text-sm font-semibold tracking-tight text-white/80">
+        langpkg<span className="text-accbrand">/{brand.id}</span>
       </span>
     </Link>
   )

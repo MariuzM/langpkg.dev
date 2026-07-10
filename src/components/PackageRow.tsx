@@ -1,80 +1,83 @@
-import { Link, useNavigate } from '@tanstack/react-router'
+import { Link } from '@tanstack/react-router'
 
-import { formatNumber, formatRelativeDate } from '@/lib/format'
-import { kindStyle, ownerInitial } from '@/lib/pkg'
+import { formatNumber, formatRelativeDate, formatVersion } from '@/lib/format'
+import { isTrending, ownerInitial } from '@/lib/pkg'
+import { getTagClass } from '@/lib/tags'
 import type { Package } from '@/lib/types'
 
-import { IconStar } from './Icons'
+import { IconArchive, IconClock, IconGitFork, IconStar, IconZap } from './Icons'
 
 type Props = {
   pkg: Package
 }
 
-export const PackageRow = ({ pkg }: Props) => {
-  const kind = pkg.kind
-  const ks = kindStyle[kind]
-  const navigate = useNavigate()
-
-  return (
-    <Link
-      to="/packages/$owner/$repo"
-      params={{ owner: pkg.owner, repo: pkg.name }}
-      className="border-bd bg-card hover:border-acc flex flex-col gap-2.25 rounded-lg border px-4.5 py-4 transition-colors duration-150"
-    >
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2.25">
-          <span className="text-tx truncate font-mono text-[16px] font-bold">{pkg.name}</span>
-          {(pkg.version ?? pkg.license) && (
-            <span className="border-chipbd bg-chip text-mut shrink-0 rounded-xs border px-1.5 py-0.5 font-mono text-[10.5px] font-medium">
-              {pkg.version ?? pkg.license}
-            </span>
-          )}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              navigate({ to: '/packages', search: { kind, sort: 'stars' } })
-            }}
-            className="shrink-0 cursor-pointer rounded-xs px-1.75 py-0.5 font-mono text-[9.5px] font-semibold tracking-[0.05em] uppercase transition-opacity hover:opacity-80"
-            style={{ color: ks.color, background: ks.bg }}
-          >
-            {kind}
-          </button>
-        </div>
-        <span className="text-tx2 flex shrink-0 items-center gap-0.75 font-mono text-[12.5px] font-semibold">
-          <IconStar size={12} className="text-tx2" />
-          {formatNumber(pkg.stars)}
+export const PackageRow = ({ pkg }: Props) => (
+  <Link
+    to="/packages/$owner/$repo"
+    params={{ owner: pkg.owner, repo: pkg.name }}
+    className="group bg-card border-bd flex cursor-pointer items-start gap-4 rounded-lg border p-5 transition-all duration-200 hover:border-white/15 hover:bg-white/[0.03]"
+  >
+    <div className="bg-accsoft text-acc flex h-10 w-10 shrink-0 items-center justify-center rounded-lg font-mono text-base font-bold">
+      {ownerInitial(pkg.name)}
+    </div>
+    <div className="min-w-0 flex-1">
+      <div className="mb-1 flex flex-wrap items-center gap-2.5">
+        <span className="font-mono text-[14px] font-semibold text-white/85 transition-colors group-hover:text-white">
+          {pkg.name}
         </span>
+        {pkg.version && (
+          <span className="rounded border border-white/10 bg-white/[0.04] px-1.5 py-0.5 font-mono text-[10px] text-white/30">
+            {formatVersion(pkg.version)}
+          </span>
+        )}
+        <span
+          className={`rounded-lg border px-1.5 py-0.5 font-mono text-[10px] ${getTagClass(pkg.kind)}`}
+        >
+          {pkg.kind}
+        </span>
+        {isTrending(pkg) && (
+          <span className="text-acc bg-accsoft border-accbd flex items-center gap-1 rounded-lg border px-1.5 py-0.5 font-mono text-[10px]">
+            <IconZap size={8} />
+            hot
+          </span>
+        )}
+        {pkg.archived && (
+          <span className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] px-1.5 py-0.5 font-mono text-[10px] text-white/30">
+            <IconArchive size={9} />
+            archived
+          </span>
+        )}
       </div>
-
-      <p className="text-mut max-w-[640px] font-sans text-[13.5px] leading-[1.45]">
+      <p className="mb-2.5 text-[13px] leading-relaxed text-white/45">
         {pkg.description || 'No description provided.'}
       </p>
-
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <span className="text-fai flex shrink-0 items-center gap-1.75 font-sans text-[11.5px] font-medium">
-            <span className="bg-surf2 text-tx2 flex size-4.5 items-center justify-center rounded-xs font-mono text-[9px] font-bold">
-              {ownerInitial(pkg.owner)}
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="flex flex-wrap gap-1.5">
+          {pkg.topics.slice(0, 4).map((tag) => (
+            <span
+              key={tag}
+              className={`rounded-lg border px-1.5 py-0.5 font-mono text-[10px] ${getTagClass(tag)}`}
+            >
+              {tag}
             </span>
-            {pkg.owner}
-          </span>
-          <span className="hidden gap-1.5 sm:flex">
-            {pkg.topics.slice(0, 2).map((t) => (
-              <span
-                key={t}
-                className="border-bd bg-chip text-fai rounded-pill border px-1.75 py-0.5 font-mono text-[10.5px] font-medium"
-              >
-                {t}
-              </span>
-            ))}
-          </span>
+          ))}
         </div>
-        <span className="text-dim shrink-0 font-mono text-[11px] font-medium">
-          updated {formatRelativeDate(pkg.pushedAt)}
-        </span>
+        <div className="ml-auto flex items-center gap-3 font-mono text-[11px] text-white/25">
+          <span className="flex items-center gap-1">
+            <IconStar size={10} />
+            {formatNumber(pkg.stars)}
+          </span>
+          <span className="flex items-center gap-1">
+            <IconGitFork size={10} />
+            {formatNumber(pkg.forks)}
+          </span>
+          <span className="flex items-center gap-1">
+            <IconClock size={10} />
+            {formatRelativeDate(pkg.pushedAt)}
+          </span>
+          <span>@{pkg.owner}</span>
+        </div>
       </div>
-    </Link>
-  )
-}
+    </div>
+  </Link>
+)

@@ -9,14 +9,10 @@ export const deriveKind = (pkg: Pick<Package, 'name' | 'description' | 'topics'>
   return 'library'
 }
 
-export const kindStyle: Record<PackageKind, { color: string; bg: string }> = {
-  library: { color: '#818cf8', bg: 'rgba(129,140,248,.14)' },
-  binding: { color: '#22d3a7', bg: 'rgba(34,211,167,.14)' },
-  tool: { color: '#f0a952', bg: 'rgba(240,169,82,.14)' },
-  app: { color: '#f472b6', bg: 'rgba(244,114,182,.14)' },
-}
-
 export const ownerInitial = (owner: string): string => owner.charAt(0).toLowerCase() || '?'
 
 export const isMaintained = (iso: string): boolean =>
   Date.now() - new Date(iso).getTime() < 1000 * 60 * 60 * 24 * 180
+
+export const isTrending = (pkg: Pick<Package, 'stars' | 'pushedAt'>): boolean =>
+  pkg.stars >= 100 && Date.now() - new Date(pkg.pushedAt).getTime() < 1000 * 60 * 60 * 24 * 45

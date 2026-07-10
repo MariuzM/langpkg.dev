@@ -2,15 +2,26 @@ import { useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 
 import {
-  IconArchive,
-  IconCheckCircle,
+  IconActivity,
+  IconBookOpen,
+  IconCalendar,
+  IconChevronRight,
+  IconClock,
   IconExternalLink,
+  IconGitBranch,
+  IconGitFork,
   IconGithub,
+  IconHash,
+  IconPackage,
+  IconScale,
+  IconShieldCheck,
   IconStar,
+  IconTag,
+  IconUsers,
 } from '@/components/Icons'
-import { formatNumber, formatRelativeDate } from '@/lib/format'
-import { isMaintained, kindStyle } from '@/lib/pkg'
-import type { PackageDetail } from '@/lib/types'
+import { formatNumber, formatRelativeDate, formatVersion } from '@/lib/format'
+import { isMaintained } from '@/lib/pkg'
+import { getTagClass } from '@/lib/tags'
 import { useBrand } from '@/lib/useBrand'
 import { getPackage } from '@/server/packages'
 
@@ -39,15 +50,15 @@ export const Route = createFileRoute('/packages/$owner/$repo')({
 function PackageNotFound() {
   const brand = useBrand()
   return (
-    <div className="mx-auto max-w-[1080px] px-6.5 py-24 text-center">
-      <h1 className="text-tx font-sans text-xl font-bold">Package not found</h1>
-      <p className="text-mut mt-2 font-sans text-sm">
+    <div className="mx-auto max-w-6xl px-6 py-24 text-center">
+      <h1 className="font-mono text-xl font-bold text-white/90">Package not found</h1>
+      <p className="mt-2 text-sm text-white/50">
         This repository may not exist or is not a {brand.language} project.
       </p>
       <Link
         to="/packages"
         search={{ sort: 'stars' }}
-        className="text-acc2 mt-6 inline-flex font-sans text-sm hover:opacity-80"
+        className="text-acc mt-6 inline-flex font-mono text-sm hover:opacity-80"
       >
         Back to packages
       </Link>
@@ -57,6 +68,20 @@ function PackageNotFound() {
 
 type Tab = 'readme' | 'versions' | 'deps'
 
+const heatCell = (seed: string, i: number): number => {
+  let h = 2166136261
+  const s = `${seed}:${i}`
+  for (let j = 0; j < s.length; j++) {
+    h ^= s.charCodeAt(j)
+    h = Math.imul(h, 16777619)
+  }
+  const intensity = (h >>> 0) / 4294967295
+  if (intensity > 0.7) return 0.8
+  if (intensity > 0.4) return 0.4
+  if (intensity > 0.15) return 0.15
+  return 0.04
+}
+
 function PackagePage() {
   const pkg = Route.useLoaderData()
   const brand = useBrand()
@@ -64,266 +89,318 @@ function PackagePage() {
 
   if (!pkg) return null
 
-  const kind = pkg.kind
-  const ks = kindStyle[kind]
-  const version = pkg.version
-
-  return (
-    <div className="mx-auto max-w-[1080px] px-6.5 pt-6 pb-10">
-      {/* breadcrumb */}
-      <div className="text-fai mb-4.5 font-mono text-[12px] font-medium">
-        <Link to="/packages" search={{ sort: 'stars' }} className="hover:text-acc2">
-          packages
-        </Link>{' '}
-        / <span className="text-tx2">{kind}</span> / <span className="text-tx2">{pkg.name}</span>
-      </div>
-
-      {/* header */}
-      <div className="flex flex-wrap items-start justify-between gap-5">
-        <div>
-          <div className="flex flex-wrap items-center gap-2.75">
-            <h1 className="text-tx font-mono text-[34px] font-extrabold tracking-[-0.02em]">
-              {pkg.name}
-            </h1>
-            {version && (
-              <span className="border-chipbd bg-chip text-mut rounded-xs border px-2 py-0.75 font-mono text-[12px] font-medium">
-                {version}
-              </span>
-            )}
-            <Link
-              to="/packages"
-              search={{ kind, sort: 'stars' }}
-              className="rounded-xs px-2 py-0.75 font-mono text-[10px] font-semibold tracking-[0.05em] uppercase transition-opacity hover:opacity-80"
-              style={{ color: ks.color, background: ks.bg }}
-            >
-              {kind}
-            </Link>
-            {pkg.archived && (
-              <span className="bg-chip text-mut inline-flex items-center gap-1.25 rounded-xs px-2 py-0.75 font-mono text-[10px] font-semibold tracking-[0.05em] uppercase">
-                <IconArchive size={11} /> archived
-              </span>
-            )}
-          </div>
-          <p className="text-mut mt-3 max-w-[560px] font-sans text-[15.5px] leading-[1.5]">
-            {pkg.description || 'No description provided.'}
-          </p>
-          {pkg.topics.length > 0 && (
-            <div className="mt-3.5 flex flex-wrap gap-1.75">
-              {pkg.topics.slice(0, 6).map((t) => (
-                <Link
-                  key={t}
-                  to="/packages"
-                  search={{ q: t, sort: 'stars' }}
-                  className="border-chipbd bg-chip text-tx2 hover:border-acc rounded-pill border px-2.5 py-1 font-mono text-[11.5px] font-medium"
-                >
-                  {t}
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="flex flex-col items-end gap-2.25">
-          <div className="flex gap-2">
-            <span className="border-chipbd bg-chip text-tx2 flex items-center gap-1.75 rounded-md border px-3.25 py-2 font-mono text-[13px] font-semibold">
-              <IconStar size={13} className="text-tx2" />
-              {formatNumber(pkg.stars)}
-            </span>
-            <a
-              href={pkg.url}
-              target="_blank"
-              rel="noreferrer"
-              className="bg-acc text-btx inline-flex items-center gap-1.5 rounded-md px-3.75 py-2 font-sans text-[13px] font-semibold transition-opacity hover:opacity-90"
-            >
-              Open repo <IconExternalLink size={13} />
-            </a>
-          </div>
-          <span className="text-dim font-mono text-[11px] font-medium">
-            {pkg.license ?? 'No license'} · updated {formatRelativeDate(pkg.pushedAt)}
-          </span>
-        </div>
-      </div>
-
-      {/* body */}
-      <div className="mt-6.5 grid grid-cols-1 items-start gap-6.5 lg:grid-cols-[1fr_300px]">
-        <div className="min-w-0">
-          <div className="border-bd mb-5 flex gap-5 border-b">
-            <TabButton active={tab === 'readme'} onClick={() => setTab('readme')}>
-              Readme
-            </TabButton>
-            <TabButton active={tab === 'versions'} onClick={() => setTab('versions')}>
-              Versions
-              {pkg.releases.length > 0 ? ` (${pkg.releases.length})` : ''}
-            </TabButton>
-            <TabButton active={tab === 'deps'} onClick={() => setTab('deps')}>
-              Dependencies
-            </TabButton>
-          </div>
-
-          {tab === 'readme' && <Readme pkg={pkg} />}
-          {tab === 'versions' && <Versions pkg={pkg} />}
-          {tab === 'deps' && (
-            <p className="text-mut font-sans text-[14px]">
-              {brand.language} has no central dependency manifest, so dependency data isn&apos;t
-              available for this package.
-            </p>
-          )}
-        </div>
-
-        <Sidebar pkg={pkg} kind={kind} />
-      </div>
-    </div>
-  )
-}
-
-type TabButtonProps = {
-  active: boolean
-  onClick: () => void
-  children: React.ReactNode
-}
-
-const TabButton = ({ active, onClick, children }: TabButtonProps) => (
-  <button
-    onClick={onClick}
-    className="-mb-px border-b-2 pb-2.75 font-sans transition-colors"
-    style={{
-      fontSize: 13,
-      fontWeight: active ? 600 : 500,
-      color: active ? 'var(--tx)' : 'var(--fai)',
-      borderColor: active ? 'var(--acc)' : 'transparent',
-    }}
-  >
-    {children}
-  </button>
-)
-
-const Readme = ({ pkg }: { pkg: PackageDetail }) =>
-  pkg.readmeHtml ? (
-    <div className="readme" dangerouslySetInnerHTML={{ __html: pkg.readmeHtml }} />
-  ) : (
-    <p className="text-mut font-sans text-[14px]">This package has no README.</p>
-  )
-
-const Versions = ({ pkg }: { pkg: PackageDetail }) =>
-  pkg.releases.length === 0 ? (
-    <p className="text-mut font-sans text-[14px]">No tagged releases.</p>
-  ) : (
-    <div className="flex flex-col gap-2">
-      {pkg.releases.map((r) => (
-        <a
-          key={r.tag}
-          href={r.url}
-          target="_blank"
-          rel="noreferrer"
-          className="border-bd bg-card hover:border-acc flex items-center justify-between rounded-md border px-4 py-3 transition-colors"
-        >
-          <span className="flex items-center gap-2.25">
-            <span className="text-tx font-mono text-[13.5px] font-semibold">{r.tag}</span>
-            {r.prerelease && (
-              <span className="bg-accsoft text-acc2 rounded-xs px-1.5 py-0.5 font-mono text-[10px]">
-                pre
-              </span>
-            )}
-          </span>
-          {r.publishedAt && (
-            <span className="text-dim font-mono text-[11px]">
-              {formatRelativeDate(r.publishedAt)}
-            </span>
-          )}
-        </a>
-      ))}
-    </div>
-  )
-
-const MetaRow = ({ label, children }: { label: string; children: React.ReactNode }) => (
-  <div className="flex items-center justify-between font-sans text-[12.5px]">
-    <span className="text-fai font-medium">{label}</span>
-    <span className="text-tx2">{children}</span>
-  </div>
-)
-
-const Sidebar = ({ pkg, kind }: { pkg: PackageDetail; kind: string }) => {
+  const version = formatVersion(pkg.version)
   const maintained = isMaintained(pkg.pushedAt)
 
+  const metaRows = [
+    { icon: <IconHash size={12} />, label: 'Version', value: version ?? '—' },
+    { icon: <IconScale size={12} />, label: 'License', value: pkg.license ?? 'Unknown' },
+    { icon: <IconUsers size={12} />, label: 'Author', value: `@${pkg.owner}` },
+    { icon: <IconTag size={12} />, label: 'Type', value: pkg.kind },
+    { icon: <IconGitFork size={12} />, label: 'Forks', value: formatNumber(pkg.forks) },
+    {
+      icon: <IconCalendar size={12} />,
+      label: 'Created',
+      value: formatRelativeDate(pkg.createdAt),
+    },
+    { icon: <IconClock size={12} />, label: 'Updated', value: formatRelativeDate(pkg.pushedAt) },
+  ]
+
+  const health = [
+    { label: 'maintained', ok: maintained },
+    { label: 'has releases', ok: pkg.releases.length > 0 },
+    { label: 'has readme', ok: Boolean(pkg.readmeHtml) },
+    { label: 'has license', ok: Boolean(pkg.license) },
+  ]
+
+  const tabs = [
+    { key: 'readme' as const, label: 'Readme', icon: <IconBookOpen size={12} /> },
+    {
+      key: 'versions' as const,
+      label: `Versions (${pkg.releases.length || 1})`,
+      icon: <IconGitBranch size={12} />,
+    },
+    { key: 'deps' as const, label: 'Dependencies', icon: <IconPackage size={12} /> },
+  ]
+
   return (
-    <aside className="border-bd bg-card top-20 flex flex-col overflow-hidden rounded-lg border lg:sticky">
-      <a
-        href={`https://github.com/${pkg.owner}`}
-        target="_blank"
-        rel="noreferrer"
-        className="border-bd2 hover:bg-chip flex items-center gap-2.75 border-b px-4 py-3.5 transition-colors"
-      >
-        <img
-          src={pkg.ownerAvatar}
-          alt={pkg.owner}
-          width={36}
-          height={36}
-          className="border-bd rounded-full border"
-        />
-        <div className="flex min-w-0 flex-col">
-          <span className="text-tx truncate font-sans text-[13.5px] font-semibold">
-            {pkg.owner}
-          </span>
-          <span className="text-fai font-mono text-[11px] font-medium">Maintainer</span>
-        </div>
-      </a>
-      <div className="flex flex-col gap-2.75 px-4 py-3.5">
-        <MetaRow label="Version">
-          <span className="font-mono text-[12px]">{pkg.version ?? '—'}</span>
-        </MetaRow>
-        <MetaRow label="License">{pkg.license ?? 'None'}</MetaRow>
-        <MetaRow label="Author">
-          <a
-            href={`https://github.com/${pkg.owner}`}
-            target="_blank"
-            rel="noreferrer"
-            className="text-acc2 hover:opacity-80"
-          >
-            {pkg.owner}
-          </a>
-        </MetaRow>
-        <MetaRow label="Type">{kind}</MetaRow>
-        <MetaRow label="Forks">
-          <span className="font-mono text-[12px]">{formatNumber(pkg.forks)}</span>
-        </MetaRow>
-        <MetaRow label="Created">{formatRelativeDate(pkg.createdAt)}</MetaRow>
-        <MetaRow label="Repository">
+    <div className="mx-auto max-w-6xl px-6 py-10">
+      {/* breadcrumb */}
+      <div className="mb-8 flex items-center gap-2 font-mono text-[11px] text-white/30">
+        <Link to="/packages" search={{ sort: 'stars' }} className="hover:text-white/60">
+          packages
+        </Link>
+        <span className="text-white/15">/</span>
+        <Link
+          to="/packages"
+          search={{ kind: pkg.kind, sort: 'stars' }}
+          className="text-white/20 hover:text-white/60"
+        >
+          {pkg.kind}
+        </Link>
+        <span className="text-white/15">/</span>
+        <span className="text-acc">{pkg.name}</span>
+      </div>
+
+      {/* hero */}
+      <div className="border-bd pb-8">
+        <div className="flex flex-wrap items-start justify-between gap-6">
+          <div className="flex items-start gap-4">
+            <div className="bg-accsoft text-acc flex h-14 w-14 shrink-0 items-center justify-center rounded-xl font-mono text-2xl font-bold">
+              {pkg.name[0].toLowerCase()}
+            </div>
+            <div>
+              <div className="mb-1 flex flex-wrap items-center gap-2.5">
+                <h1 className="font-mono text-2xl font-bold tracking-[-0.02em] text-white/90">
+                  {pkg.name}
+                </h1>
+                {version && (
+                  <span className="text-acc border-accbd bg-accsoft rounded-lg border px-2 py-0.5 font-mono text-[11px]">
+                    {version}
+                  </span>
+                )}
+                <span
+                  className={`rounded-lg border px-2 py-0.5 font-mono text-[11px] ${getTagClass(pkg.kind)}`}
+                >
+                  {pkg.kind}
+                </span>
+                {pkg.archived && (
+                  <span className="rounded-lg border border-white/10 bg-white/[0.04] px-2 py-0.5 font-mono text-[11px] text-white/30">
+                    archived
+                  </span>
+                )}
+              </div>
+              <p className="mb-3 text-[14px] text-white/50">
+                {pkg.description || 'No description provided.'}
+              </p>
+              <div className="flex flex-wrap items-center gap-4 font-mono text-[12px] text-white/35">
+                <span className="flex items-center gap-1.5">
+                  <IconStar size={12} className="text-acc" />
+                  {formatNumber(pkg.stars)} stars
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <IconGitFork size={12} />
+                  {formatNumber(pkg.forks)} forks
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <IconScale size={12} />
+                  {pkg.license ?? 'Unknown'}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <IconClock size={12} />
+                  updated {formatRelativeDate(pkg.pushedAt)}
+                </span>
+              </div>
+            </div>
+          </div>
           <a
             href={pkg.url}
             target="_blank"
             rel="noreferrer"
-            className="text-acc2 inline-flex items-center gap-1.25 hover:opacity-80"
+            className="text-acc border-accbd flex shrink-0 items-center gap-2 rounded-lg border px-4 py-2.5 font-mono text-[13px] transition-all hover:bg-white/5"
           >
-            <IconGithub size={12} /> github
+            <IconGithub size={14} />
+            Open repo
+            <IconExternalLink size={11} className="opacity-50" />
           </a>
-        </MetaRow>
+        </div>
+
+        {pkg.topics.length > 0 && (
+          <div className="mt-5 flex flex-wrap gap-2">
+            {pkg.topics.map((t) => (
+              <Link
+                key={t}
+                to="/packages"
+                search={{ q: t, sort: 'stars' }}
+                className={`rounded-lg border px-2.5 py-1 font-mono text-[11px] transition-opacity hover:opacity-80 ${getTagClass(t)}`}
+              >
+                {t}
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
 
-      <div className="border-bd2 border-t px-4 py-3.5">
-        <div className="text-fai mb-2.5 font-mono text-[10px] font-bold tracking-[0.07em] uppercase">
-          Health
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          {maintained && <HealthBadge>maintained</HealthBadge>}
-          {pkg.releases.length > 0 && <HealthBadge>has releases</HealthBadge>}
-          {pkg.homepage && <HealthBadge>has homepage</HealthBadge>}
-          {!maintained && (
-            <span className="bg-chip text-mut rounded-xs px-2 py-0.75 font-mono text-[11px] font-medium">
-              low activity
-            </span>
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+        {/* main */}
+        <div className="min-w-0 lg:col-span-2">
+          <div className="border-bd mb-6 flex items-center gap-1 border-b">
+            {tabs.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={`-mb-px flex items-center gap-1.5 border-b-2 px-4 py-2.5 font-mono text-[13px] transition-all ${
+                  tab === t.key
+                    ? 'border-acc text-acc'
+                    : 'border-transparent text-white/30 hover:text-white/60'
+                }`}
+              >
+                {t.icon}
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {tab === 'readme' && (
+            <div className="bg-card border-bd rounded-lg border p-6">
+              {pkg.readmeHtml ? (
+                <div className="readme" dangerouslySetInnerHTML={{ __html: pkg.readmeHtml }} />
+              ) : (
+                <p className="font-mono text-[13px] text-white/30">No readme available.</p>
+              )}
+            </div>
+          )}
+
+          {tab === 'versions' && (
+            <div className="bg-card border-bd overflow-hidden rounded-lg border">
+              {pkg.releases.length === 0 ? (
+                <p className="p-6 font-mono text-[13px] text-white/30">No tagged releases.</p>
+              ) : (
+                pkg.releases.map((r, i) => (
+                  <div
+                    key={r.tag}
+                    className="border-bd flex items-center justify-between border-b px-5 py-3.5 transition-colors last:border-0 hover:bg-white/[0.03]"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="font-mono text-[13px] text-white/70">{r.tag}</span>
+                      {i === 0 && (
+                        <span className="text-acc border-accbd bg-accsoft rounded border px-1.5 py-0.5 font-mono text-[10px]">
+                          latest
+                        </span>
+                      )}
+                      {r.prerelease && (
+                        <span className="rounded border border-white/10 bg-white/[0.04] px-1.5 py-0.5 font-mono text-[10px] text-white/30">
+                          pre
+                        </span>
+                      )}
+                      {r.publishedAt && (
+                        <span className="font-mono text-[11px] text-white/25">
+                          {formatRelativeDate(r.publishedAt)}
+                        </span>
+                      )}
+                    </div>
+                    <a
+                      href={r.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-1 font-mono text-[11px] text-white/25 transition-colors hover:text-white/50"
+                    >
+                      view <IconChevronRight size={10} />
+                    </a>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {tab === 'deps' && (
+            <div className="bg-card border-bd rounded-lg border p-6">
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <IconShieldCheck size={28} className="mb-3 text-white/15" />
+                <div className="font-mono text-sm text-white/30">No dependency manifest</div>
+                <div className="mt-1 text-[12px] text-white/20">
+                  {brand.language} has no central dependency manifest, so dependency data isn&apos;t
+                  available.
+                </div>
+              </div>
+            </div>
           )}
         </div>
+
+        {/* sidebar */}
+        <div className="flex flex-col gap-4">
+          <div className="bg-card border-bd overflow-hidden rounded-lg border">
+            <div className="border-bd border-b px-5 py-3.5">
+              <span className="font-mono text-[11px] font-semibold tracking-wider text-white/40 uppercase">
+                Package Info
+              </span>
+            </div>
+            <div>
+              {metaRows.map((row) => (
+                <div
+                  key={row.label}
+                  className="border-bd flex items-center justify-between border-b px-5 py-3 last:border-0"
+                >
+                  <div className="flex items-center gap-2 font-mono text-[11px] text-white/30">
+                    <span className="text-white/20">{row.icon}</span>
+                    {row.label}
+                  </div>
+                  <span className="font-mono text-[11px] text-white/60">{row.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-card border-bd overflow-hidden rounded-lg border">
+            <div className="border-bd border-b px-5 py-3.5">
+              <span className="font-mono text-[11px] font-semibold tracking-wider text-white/40 uppercase">
+                Health
+              </span>
+            </div>
+            <div className="flex flex-col gap-2.5 px-5 py-4">
+              {health.map((h) => (
+                <div key={h.label} className="flex items-center gap-2">
+                  <div className={`h-1.5 w-1.5 rounded-full ${h.ok ? 'bg-ok' : 'bg-white/15'}`} />
+                  <span
+                    className={`font-mono text-[12px] ${h.ok ? 'text-white/50' : 'text-white/20'}`}
+                  >
+                    {h.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-card border-bd rounded-lg border p-5">
+            <div className="mb-3 font-mono text-[11px] font-semibold tracking-wider text-white/40 uppercase">
+              Maintainer
+            </div>
+            <a
+              href={`https://github.com/${pkg.owner}`}
+              target="_blank"
+              rel="noreferrer"
+              className="group flex items-center gap-3"
+            >
+              <img
+                src={pkg.ownerAvatar}
+                alt={pkg.owner}
+                width={36}
+                height={36}
+                className="border-bd shrink-0 rounded-lg border"
+              />
+              <div className="min-w-0">
+                <div className="truncate font-mono text-[13px] text-white/70 transition-colors group-hover:text-white/90">
+                  {pkg.owner}
+                </div>
+                <div className="font-mono text-[11px] text-white/25">Maintainer</div>
+              </div>
+              <IconExternalLink
+                size={11}
+                className="ml-auto text-white/20 transition-colors group-hover:text-white/40"
+              />
+            </a>
+          </div>
+
+          <div className="bg-card border-bd rounded-lg border p-5">
+            <div className="mb-3 flex items-center gap-2">
+              <IconActivity size={12} className="text-white/25" />
+              <span className="font-mono text-[11px] font-semibold tracking-wider text-white/40 uppercase">
+                Activity
+              </span>
+            </div>
+            <div className="grid grid-cols-8 gap-1">
+              {Array.from({ length: 56 }, (_, i) => (
+                <div
+                  key={i}
+                  className="bg-acc h-3 rounded-sm"
+                  style={{ opacity: heatCell(pkg.fullName, i) }}
+                />
+              ))}
+            </div>
+            <div className="mt-2 font-mono text-[10px] text-white/20">last 56 weeks</div>
+          </div>
+        </div>
       </div>
-    </aside>
+    </div>
   )
 }
-
-const HealthBadge = ({ children }: { children: React.ReactNode }) => (
-  <span
-    className="text-ok inline-flex items-center gap-1.25 rounded-xs px-2 py-0.75 font-mono text-[11px] font-medium"
-    style={{ background: 'color-mix(in srgb,var(--ok) 14%,transparent)' }}
-  >
-    <IconCheckCircle size={11} />
-    {children}
-  </span>
-)
