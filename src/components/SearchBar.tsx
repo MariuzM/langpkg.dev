@@ -37,10 +37,10 @@ export const SearchBar = ({
   }
 
   return (
-    <form onSubmit={submit} className="relative w-full">
+    <form onSubmit={submit} className="group relative w-full">
       <IconSearch
         size={14}
-        className="absolute top-1/2 left-4 -translate-y-1/2 text-white/30"
+        className="group-focus-within:text-acc absolute top-1/2 left-4 -translate-y-1/2 text-white/30 transition-colors"
       />
       <input
         ref={ref}
@@ -48,7 +48,7 @@ export const SearchBar = ({
         onChange={(e) => setValue(e.target.value)}
         placeholder={placeholder}
         aria-label="Search packages"
-        className="bg-surf border-bd focus:border-accbd rounded-pill w-full border py-3 pr-4 pl-10 font-mono text-[14px] text-white/80 transition-all outline-none placeholder:text-white/20"
+        className="bg-surf border-bd focus:border-acc focus:ring-acc rounded-pill w-full border py-3 pr-4 pl-10 font-mono text-[14px] text-white/80 transition-all outline-none placeholder:text-white/20"
       />
       {value && (
         <button
